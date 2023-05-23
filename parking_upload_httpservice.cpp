@@ -228,17 +228,20 @@ void pushCarImage(ParkingCarMedia carMedia) {
         
         cout << "code: " << code << endl;
         cout << "msg: " << msg << endl;
-        logfile("[pushCarImage] code: %s, msg: %s\n", code.c_str(), msg.c_str());
+        logfile("[pushCarImage] code: %s, msg: %s\n\n", code.c_str(), msg.c_str());
 
         carMedia.printInfo();
 
         int ret = stoi(code);
         if (ret == 1) { // request failed
+            if (retryTime > 3) {
+                return;
+            } 
             retryTime++;
             cout << "upload image failed! retry " << retryTime << " times" << endl;
             this_thread::sleep_for(chrono::milliseconds(3 * 1000));
             pushCarImage(carMedia);
-        } else {
+        } else if (ret == 0) {
             retryTime = 0;
         }
         

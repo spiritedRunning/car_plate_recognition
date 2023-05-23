@@ -281,43 +281,6 @@ void BB_Parse(uint8* data, int iDataLen) {
 			}
 			GsmstatFlag = 1;
 			printf("Term  Register successfully!\n\n");
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 			break;
 		case CMD_AHTHEN:
 			iReplyID = pData[2] * 256 + pData[3];
@@ -387,7 +350,7 @@ void BB_Parse(uint8* data, int iDataLen) {
 			break;
 		case CMD_CHANGE_PARA:
 			{
-				printf("\n\n\n");
+				printf("\n");
 				printf("GET SERVER PARA:\n");
 				printf("%s\n",pData);
 
@@ -406,7 +369,7 @@ void BB_Parse(uint8* data, int iDataLen) {
 					if( 0 == ret)
 					{
 						init_parmeter("/root/app/conf/car_para.txt");
-						printf("common reply\n");
+						printf("pdate to car_para config\n");
 						BB_CommReply(pCmdID, pSeri, 0);
 						return;	
 					}

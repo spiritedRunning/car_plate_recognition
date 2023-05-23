@@ -369,6 +369,8 @@ int mergePicwithHorizontally(string imgpath1, string imgpath2, string outputPath
 static void combineLeftAndRight(ParkingCarInfo bestCarInfo, ParkingCarMedia bestCarMedia, vector<ParkingCarPair>& pairVec, int avergeProb) {
 	string frontImage, backImage;
 
+	logfile("bestCarInfo camId: %d, spaceID: %s, carplate: %s, prob: %d\n", bestCarInfo.camId, bestCarInfo.spaceCode.c_str(), 
+			bestCarInfo.carNo, bestCarInfo.carProbability);
 	if (bestCarInfo.camId == CAM_FRONT) {
 		frontImage = bestCarMedia.imageUrl;
 
@@ -387,7 +389,7 @@ static void combineLeftAndRight(ParkingCarInfo bestCarInfo, ParkingCarMedia best
 		backImage = bestCarMedia.imageUrl;
 	}
 	cout << "front img path: " << frontImage << ", back image path: " << backImage << endl;
-	logfile("front img path: %s, ack image path: %s\n", frontImage.c_str(), backImage.c_str());
+	logfile("front img path: %s, \nback image path: \n%s\n", frontImage.c_str(), backImage.c_str());
 
 	if (frontImage.empty() || backImage.empty()) {
 		if (frontImage.empty()) {

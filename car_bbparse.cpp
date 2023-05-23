@@ -206,6 +206,14 @@ static int UpdateparaFromTmp(char *parafile)
 		{
 			sscanf(line, "%*[^=]=%f", &gpsoffset); 
 		}
+		if(memcmp(line, "car_role", strlen("car_role")) == 0 )
+		{
+			sscanf(line, "%*[^=]=%d", &car_role); 
+		}
+		if(memcmp(line, "master_server_ip", strlen("master_server_ip")) == 0 )
+		{
+			sscanf(line, "%*[^=]=%[^;]", &masterServerIP); 
+		}
 		if(memcmp(line, "vehicle_roi", strlen("vehicle_roi")) == 0 )
 		{   
             int x,y,width,height;
@@ -229,9 +237,17 @@ static int UpdateparaFromTmp(char *parafile)
     }
     fclose(fd);
 
-	sprintf(paradata,"[car_para]\ncarplatescore=%.2f;\ncameratype=%d;\ncarscore=%.2f;\nactivacode=%s;\nrtspenable=%d;\ngpsoffset=%.3f;\nangle_region=[%d,%d];\nvehicle_roi=[%d,%d,%d,%d];\n",
-		carnum_score,cameraType,car_score,activacode,isRTSPEnable,gpsoffset,angleRegion[0],angleRegion[1],vehicle_det_rect.x,vehicle_det_rect.y,vehicle_det_rect.width,vehicle_det_rect.height);
-	SavePara("/root/app/conf/car_para.txt",paradata,strlen(paradata));
+	sprintf(paradata,"[car_para]\ncarplatescore=%.2f;\ncameratype=%d;\ncarscore=%.2f;\nactivacode=%s;\nrtspenable=%d;\ngpsoffset=%.3f;\nangle_region=[%d,%d];\nvehicle_roi=[%d,%d,%d,%d];\ncar_role=%d;\n",
+		carnum_score,cameraType,car_score,activacode,isRTSPEnable,gpsoffset,angleRegion[0],angleRegion[1],
+		vehicle_det_rect.x,vehicle_det_rect.y,vehicle_det_rect.width,vehicle_det_rect.height, car_role);
+
+	if (strlen(masterServerIP) > 0) {
+		char tmp[50] = {0};
+		sprintf(tmp, "master_server_ip=%s;", masterServerIP);
+		strcat(paradata, tmp);
+	}
+
+	SavePara("/root/app/conf/car_para.txt", paradata, strlen(paradata));
 	
 	return 0;
 }
@@ -287,21 +303,23 @@ void BB_Parse(uint8* data, int iDataLen, int type) {
 
 	// 反向转码
 	iDataLen = ReEscapeData(dstData, data, iDataLen);
-	// PRINT("Bubiao reply: ", "");
-	// showArray("", dstData, iDataLen);
+	//PRINT("receive platform: ", "");
+	//showArray("", dstData, iDataLen);
 
 	// 检测数据长度问题
 	int iPackLen;
 	// iPackLen = readByte2Short(&data[2], 2);
 	iPackLen = data[2] * 256 + data[3];
-	if (iDataLen != iPackLen + 13) {
-		return;
-	}
+	// if (iDataLen != iPackLen + 13) {
+	// 	printf("receive incorrect length, iDataLen: %d, iPackLen: %d\n", iDataLen, iPackLen);
+	// 	return;
+	// }
 
 	// 检测数据校验码
 	uint8 cSum = 0;
 	cSum = CheckSum(dstData, iDataLen - 1);
 	if (cSum != dstData[iDataLen - 1]) {
+		printf("receive incorrect checksum\n");
 		return;
 	}
 
@@ -309,6 +327,7 @@ void BB_Parse(uint8* data, int iDataLen, int type) {
 	uint8* pCmdID = &dstData[0];
 	// short iCommandID = readByte2Short(&dstData[0], 2);;
 	int iCommandID = dstData[0] * 256 + dstData[1];
+	printf("receive MsgID: 0x%x\n", iCommandID);
 
 	// 消息流水号
 	uint8* pSeri = &dstData[10];
@@ -424,7 +443,7 @@ void BB_Parse(uint8* data, int iDataLen, int type) {
 			break;
 		case CMD_CHANGE_PARA:
 			{
-				printf("\n\n\n");
+				printf("\n");
 				printf("GET SERVER PARA:\n");
 				printf("%s\n",pData);
 
@@ -435,6 +454,7 @@ void BB_Parse(uint8* data, int iDataLen, int type) {
 				len = iPackLen;
 
 				ret = SavePara("/root/app/conf/tmppara.txt", tmpData, len);//暂时存入临时文件里
+				printf("tmpData: %s\n", tmpData);
 				if(ret == 0)//写入成功
 				{
 					printf("tmp data write ok \n");
@@ -443,7 +463,7 @@ void BB_Parse(uint8* data, int iDataLen, int type) {
 					if( 0 == ret)
 					{
 						init_parmeter("/root/app/conf/car_para.txt");
-						printf("common reply\n");
+						printf("update to car_para config\n\n");
 						BB_CommReply(pCmdID, pSeri, 0);
 						return;	
 					}

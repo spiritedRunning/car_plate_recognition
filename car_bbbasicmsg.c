@@ -502,8 +502,13 @@ int BB_FtpUpdate(uint8* data) {
 		sprintf(ftpBuff, "/root/etc/update/ftpUpdate.sh &");
 		printf("%s\n", ftpBuff);
 		system(ftpBuff);
-	} 
-	else 
+	} else if (data[0] = '#') 
+	{
+		memset(ftpBuff, 0, sizeof(ftpBuff));
+		sprintf(ftpBuff, "/root/etc/update/upload_log.sh &");
+		printf("%s\n", ftpBuff);
+		system(ftpBuff);
+	} else 
 	{
 		printf("bad ftpinfo format,please start with $\n");
 	}

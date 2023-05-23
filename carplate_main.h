@@ -138,7 +138,7 @@ typedef unsigned char 	uint8;
 #define LOCATION_INTVERVAL      10
 #define OFFLINE_PERIOD          30
 
-#define VERSION_CARPLATE       		"COMMON_V34_1_10"
+#define VERSION_CARPLATE       		"COMMON_V36_1_17"
 
 extern uint8 takePhotoFlag;
 extern unsigned short takePhotoSeriNo;
@@ -149,6 +149,7 @@ extern float car_score;
 extern char activacode[64];
 extern uint8 isRTSPEnable;
 extern float gpsoffset;
+extern uint8 car_role;
 
 extern uint8 angleRegion[2];
 
@@ -183,6 +184,7 @@ extern volatile uint8 GsmstatFlag;
 #define   AU_FILE_NUM   10
 
 #define GPS_LEN 50
+#define BUFFER_SIZE 1024
 
 #define PRINT(tag, fmt, ...) printf("%s %s " fmt"", get_cur_time(), tag, ##__VA_ARGS__)
 
@@ -242,6 +244,16 @@ typedef struct {
 	volatile uint8 extraA5Msg[8];		
 } stGpsInformat;
 
+typedef struct {
+    uint8 buffer[BUFFER_SIZE];
+    int start;
+    int end;
+    int size;
+} ring_buffer;
+
+void init_ring_buffer(ring_buffer* rb);
+void write_ring_buffer(ring_buffer* rb, uint8 data);
+uint8 read_ring_buffer(ring_buffer* rb);
 
 extern stGpsInformat* pGpsInfo;
 
@@ -390,6 +402,7 @@ int  ParkrecThread(double baselat,double baselng);
 void CarportDetStart(void);
 void savelog(const char *src);
 int init_parmeter(char *parafile);
+void logfile(const char* format, ...);
 
 void startUploadService();
 bool isBubiaoConnected();
@@ -397,8 +410,7 @@ void setMasterServerTerminate();
 
 void initClientSocket();
 int sendSlaveData(uint8* data, int len);
-
-inline void showArray(char* str, uint8_t *data, int len);
+void showArray(const char* str, const uint8_t *data, const int len);
 const char* getStateDescription(int state);
 
 void pushParkingEvent(ParkingCarInfo carInfo, ParkingCarMedia carMedia);

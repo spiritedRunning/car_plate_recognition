@@ -64,7 +64,7 @@ static uint8 uGpsBuff[1024];
 static int frameErr = 0;
 
 #define GPS_DEV "/dev/ttyS3"
-
+#define LOGGER_PATH "/mnt/sdcard/logger.log"
 
 #define SQRT2 sqrt(2)
 #define SQRT3 sqrt(3)
@@ -1384,8 +1384,10 @@ int init_parmeter(char *parafile)
             printf("masterServerIP = %s\n", masterServerIP);
         }
     }
-	printf("##### The carnum_score is %f,the cameraType is %d,car_score is %f,activacode is %s,rtspenable is %d,gpsoffset is %f , angle_region is [%f,%f], vehicle_roi is [%d,%d,%d,%d] \n",
-        carnum_score,cameraType,car_score,activacode,isRTSPEnable,gpsoffset,cosAngleMin,cosAngleMax,vehicle_det_rect.x,vehicle_det_rect.y,vehicle_det_rect.width,vehicle_det_rect.height);
+	printf("##### The carnum_score is %f,the cameraType is %d,car_score is %f,activacode is %s,rtspenable is %d,gpsoffset is %f \
+                ,angle_region is [%f,%f], vehicle_roi is [%d,%d,%d,%d], car_role = %d, master_server_ip = %s \n\n",\
+                carnum_score,cameraType,car_score,activacode,isRTSPEnable,gpsoffset,cosAngleMin,cosAngleMax,vehicle_det_rect.x,\
+                vehicle_det_rect.y,vehicle_det_rect.width,vehicle_det_rect.height, car_role, masterServerIP);
     fclose(fd);	
 	return 0;
 }
@@ -1445,6 +1447,27 @@ void TF_dectect()
 	pthread_create(&thTF, &attr, TFdetectThread, NULL);
 }
 
+void checkLoggerFile() {
+    struct stat file_stat;
+    time_t current_time;
+    double difference;
+
+    int ret = stat(LOGGER_PATH, &file_stat);
+    printf("stat ret = %d\n");
+    if (stat(LOGGER_PATH, &file_stat) == 0) {
+        time(&current_time);
+
+        difference = difftime(current_time, file_stat.st_mtime);
+        printf("difference = %f\n", difference);
+
+        if (difference > 24 * 60 * 60) {
+            if (remove(LOGGER_PATH) != 0) {
+                printf("logger file expired, deleting it!\n");
+            }
+        }
+    }
+}
+
 int main(int argc, char *argv[]) 
 {
     printf("Carport match process \n");
@@ -1465,11 +1488,8 @@ int main(int argc, char *argv[])
 	BB_LocTaskStart();
 	BB_KeepAlive();
 
-    // TM_RecSndServInit();
-    // TM_LocTaskStart();
-    // TM_KeepAlive();
-
 	TF_dectect();
+    checkLoggerFile();
 	
     while ((c = getopt_long(argc, argv, optstr, long_options, NULL)) != -1) {
         const char *tmp_optarg = optarg;

@@ -181,7 +181,6 @@ inline void logfile(const char* format, ...) {
 	va_list args;
 	va_start(args, format);
 
-
 	time_t timep;
 	time(&timep);
 	struct tm *p_time = gmtime(&timep);		
@@ -218,7 +217,7 @@ inline void logfile(const char* format, ...) {
 	va_end(args);
 }
 
-inline void showArray(char* str, uint8_t *data, int len) {
+inline void showArray(const char* str, const uint8_t *data, const int len) {
 	printf("%s", str);
 	for(int i = 0; i < len; i++) {
 		printf("%02x ", data[i]);

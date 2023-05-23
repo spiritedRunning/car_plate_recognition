@@ -48,6 +48,7 @@ bool isBubiaoConnected() {
 
 void initClientSocket() {
 	printf("initClientSocket\n");
+	logfile("initClientSocket\n");
 	
 	pthread_attr_t attr;
 	pthread_attr_init(&attr);
@@ -67,7 +68,13 @@ static void* slaveSocketThread(void* arg) {
 
 	struct sockaddr_in server_addr;
 	server_addr.sin_family = AF_INET;
+	
+	if (strlen(masterServerIP) == 0) {
+		printf("invalid masterServerIP\n");
+		return;
+	}
 	printf("slaveSocketThread masterServerIP=%s\n", masterServerIP);
+
 	inet_pton(AF_INET, masterServerIP, &server_addr.sin_addr.s_addr);
 	server_addr.sin_port = htons(SERVER_PORT);
 	
@@ -84,13 +91,26 @@ static void* slaveSocketThread(void* arg) {
 int sendSlaveData(uint8* data, int len) {
 	if (slaveSock <= 0) {
 		printf("invalid connect socket\n");
+		logfile("invalid connect socket\n");
 		return;
 	}
 
 	if (data[1] == 0x08 && data[2] == 0x01) {
 		PRINT("[sendSlaveData]", "send media to master\n");
+		logfile("[sendSlaveData] send media to master\n");
 	} else {
-		//showArray("send to Master: ", data, len);
+		char output[len * 3 + 1] = {0};
+		char *ptr = &output[0];
+
+		for (int i = 0; i < len; i++) {
+			ptr += sprintf(ptr, "%02x ", data[i]);
+		}
+
+		if (!(data[1] == 0x02 && data[2] == 0x00)) { // filter position upload
+			printf("send to Master: %s\n", output);
+			logfile("send to Master: %s\n", output);
+		}
+ 		
 	}
 	
 	return send(slaveSock, data, len, 0);
@@ -244,7 +264,7 @@ static int BB_NetSendData(uint8* uData, int iDataLen) {
 }
 
 static int BB_NetRecvData(uint8* uData) {
-	int retVal = 0;
+	static int retVal = 0;
 
 	struct timeval tv;
 	tv.tv_sec = 1;		// 1S
@@ -257,7 +277,8 @@ static int BB_NetRecvData(uint8* uData) {
 	retVal = select(iSock + 1, &rdfds, NULL, NULL, &tv);
 	// 读数据
 	if (retVal > 0) {
-		retVal = read(iSock, uData, 1);
+		retVal = read(iSock, uData, 1023);
+		//printf("read %d byte. ", retVal);
 	}
 	// 返回读取数据的个数
 	return retVal;
@@ -313,74 +334,71 @@ static void* BB_TimeThread(void* arg) {
 }
 
 static void* BB_ReadThread(void* arg) {
-	uint8 c, ret = 0, headFlag = 0;
-	uint8 uRdBuff[1024];
-	int nread = 0;
+	//static int nread = 0;
+	//static int head_flag = 0;
+	//static uint8 c;
+	static int len = 0;
+	static uint8 uRdBuff[1024];
 
-	//printf("BB_ReadThread receive: ");
-	while (1) {
-		// 如果网络没有链接，则不进行数据接受与发送
-		if (netStatus  == FALSE) {
+    while (1) {
+        if (netStatus == FALSE) {
+            usleep(10000);
+            continue;
+        }
+
+        len = BB_NetRecvData(uRdBuff);
+		if (len == 0) {
+			//printf("receving empty\n");
 			usleep(10000);
 			continue;
 		}
 
-		ret = BB_NetRecvData(&c);
-		if (ret != 1) {
+		//printf("receving len: %d\n", len);		
+		if (uRdBuff[0] != 0x7e || uRdBuff[len - 1] != 0x7e) {
+			printf("------error start and trailing------\n");
+			memset(uRdBuff, 0, sizeof(uRdBuff));
 			usleep(10000);
 			continue;
-		}
-		
-		//printf("%x", c);
+        }
+		//printf("receving %02x, head_flag = %d, nRead = %d\n", c, head_flag, nread);
 
-		// 标记协议头开始标志
-		if (c == 0x7E && headFlag == 0) {
-			headFlag = 1;
-			// 清空读取数据
-			nread = 0;
-			memset(uRdBuff, 0, sizeof(uRdBuff));
-		}
+		showArray("socket recv: ", uRdBuff, len);
 
-		// 如果已经收到数据头，证明帧开始 successfully
-		if (headFlag) {
-			uRdBuff[nread] = c;
-			nread++;
+		BB_Parse(&uRdBuff[1], len - 2, SERVER_TYPE_BB);
+		memset(uRdBuff, 0, sizeof(uRdBuff));
 
-			// 数据帧结束
-			if (nread > 2 && c == 0x7e) {
-				// 收取帧结束
-				// 去掉前后7E后，进行数据分析
-				BB_Parse(&uRdBuff[1], nread - 2, SERVER_TYPE_BB);
+		bbWorkTime = 0;
+        bbStartTime = 0;
 
-				//printf("Bubiao parse here.............\n");
-				bbWorkTime = 0;
-				bbStartTime = 0;
-#if 0
-				if(1){
-					printf("receive:\n");
-					int i;
-					for (i = 0; i < nread; i++) {
-						printf("%02x ", uRdBuff[i]);
-					}
-					printf("\n");
-				}
-#endif
-				// 清空读取数据
-				nread = 0;
-				headFlag = 0;
-				memset(uRdBuff, 0, sizeof(uRdBuff));
-			}
-		}
+        // if (head_flag == 1) {
+        //     uRdBuff[nread++] = c;
 
-		if (nread > 1023) {
-			// 清空读取数据
-			nread = 0;
-			memset(uRdBuff, 0, sizeof(uRdBuff));
-		}
+		// 	//printf("push %02x to buffer, nread = %d\n", c, nread);
+		// 	//showArray("buffer: ", uRdBuff, nread);
+        //     if (nread > 2 && c == 0x7e) {
 
-	}
-	printf("\n");
-	return NULL;
+		// 		showArray("socket recv: ", uRdBuff, nread);
+		// 		printf("-------trailing with 0x7e-------\n");
+        //         BB_Parse(&uRdBuff[1], nread - 2, SERVER_TYPE_BB);
+
+		// 		nread = 0;
+		// 		head_flag = 0;
+
+		// 		printf("reset nread and head_flag\n");
+		// 		bbWorkTime = 0;
+        //      bbStartTime = 0;
+				
+		// 		memset(uRdBuff, 0, sizeof(uRdBuff));
+		// 	}
+		// }
+
+		// if (nread > 1023) {
+		// 	nread = 0;
+		// 	memset(uRdBuff, 0, sizeof(uRdBuff));
+		// }
+		usleep(10000);
+    }
+    return NULL;
 }
 
 
